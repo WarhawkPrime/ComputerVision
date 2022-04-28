@@ -5,6 +5,8 @@
 
 # own
 *.dll
+*.png
+*.jpg
 
 
 # User-specific files

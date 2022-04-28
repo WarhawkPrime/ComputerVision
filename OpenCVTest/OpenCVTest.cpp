@@ -20,6 +20,7 @@ cv::Mat dst;
 
 //const char* filename = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/ratschedturned.png";
 const char* filename = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/P1/r.jpg";
+//const char* filename = "r.jpg";
 
 /*
 int morph_elem = 0;
