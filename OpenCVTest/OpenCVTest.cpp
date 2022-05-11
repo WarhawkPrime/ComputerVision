@@ -428,6 +428,13 @@ cv::Mat imbus_background_sub(cv::Mat src)
 
 cv::Mat imbus()
 {
+	const double scaling = 0.15;
+
+	const double image_width = 3024;
+	const double image_height = 4032;
+
+	const double reference_side_length = 15;	//in mm
+
 	const int max_value = 255;
 
 	int low_H = 0;
@@ -437,7 +444,11 @@ cv::Mat imbus()
 	int high_S = max_value;
 	int high_V = max_value;
 
-	const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/imb_dice.jpg";
+	//desktop
+	//const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/imb_dice.jpg";
+	//laptop
+	const char* imbus = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/imbus/imbus_dice.jpg";
+
 	src = cv::imread(cv::samples::findFile(imbus), cv::IMREAD_COLOR);
 
 	//convert bgr to hsv colour space
@@ -447,7 +458,8 @@ cv::Mat imbus()
 	cv::Mat dst;
 	cv::inRange(hsv, cv::Scalar(low_H, low_S, low_V), cv::Scalar(360, 60, 255), dst);
 
-	cv::resize(dst, dst, cv::Size(), 0.2, 0.2);
+	//cv::resize(dst, dst, cv::Size(), 0.2, 0.2);
+	cv::resize(dst, dst, cv::Size(), scaling, scaling);
 	imshow("hsv", dst);
 
 
@@ -461,14 +473,16 @@ cv::Mat imbus()
 
 	imshow("erosion:", dst);
 
-
+	//finding contours
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(dst, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
 	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
 	std::vector<cv::Rect> boundRect(contours.size());
-	//std::vector<cv::Rect> boundRect;
 
+	std::vector<cv::Rect> boundRectOnly;
+
+	//adding rects to vector. TODO: minareaRect
 	for (size_t i = 0; i < contours.size(); i++)
 	{
 		approxPolyDP(contours[i], contours_poly[i], 3, true);
@@ -476,16 +490,70 @@ cv::Mat imbus()
 		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
 		{
 
-			//boundRect.push_back(boundingRect(contours_poly[i]));
+			boundRectOnly.push_back(boundingRect(contours_poly[i]));
 			std::cout << "push back" << std::endl;
 			boundRect[i] = boundingRect(contours_poly[i]);
 		}
 	}
 
+	std::cout << "size of rectonly: " << boundRectOnly.size() << std::endl;
+
+	//calculating size of object via reference:
+	cv::Rect reference;
+	cv::Rect object;
+
+	double ref_x = 0, ref_y = 0, obj_x = 0, obj_y = 0;
+	for (auto& ele : boundRectOnly)
+	{
+		if (ref_x == 0 && ref_y == 0)
+		{
+			ref_x = ele.width;
+			ref_y = ele.height;
+		}
+		else
+		{
+			if (ele.height < ref_y && ele.width < ref_x)
+			{
+				obj_x = ref_x;
+				obj_y = ref_y;
+
+				ref_x = ele.width;
+				ref_y = ele.height;
+			}
+			else
+			{
+				obj_x = ele.width;
+				obj_y = ele.height;
+			}
+		}
+	}
+
+	std::cout << "ref width: " << ref_x << " ref height: " << ref_y << std::endl;
+
+	//get sizes in original pixel count
+	ref_x = ref_x * (1 / scaling);
+	ref_y = ref_y * (1 / scaling);
+
+	std::cout << "ref width: " << ref_x << " ref height: " << ref_y << std::endl;
+
+	double width_rel = ref_x / reference_side_length;
+	double height_rel = ref_y / reference_side_length;
+
+	double px_per_mm = (width_rel + height_rel) / 2;	//px pro mm
+
+	//get sizes in original pixel count
+	obj_x = obj_x * (1 / scaling);
+	obj_y = obj_y * (1 / scaling);
+
+	obj_x = obj_x / px_per_mm;
+	obj_y = obj_y / px_per_mm;
+
+	std::cout << " width  in mm: " << obj_x << std::endl;
+	std::cout << " height in mm: " << obj_y << std::endl;
 
 
 
-
+	//drawing the contours and rects
 	cv::Mat drawing = cv::Mat::zeros(dst.size(), CV_8UC3);
 	cv::RNG rng(12345);
 
@@ -495,18 +563,27 @@ cv::Mat imbus()
 		drawContours(drawing, contours_poly, (int)i, color);
 		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
 
+		/*
 		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
 		{
+
 			std::string s = std::to_string(boundRect[i].height);
 			std::string h = std::to_string(boundRect[i].width);
 
 			std::cout << s << std::endl;
 			std::cout << h << std::endl;
 
-			cv::putText(drawing, s, cv::Point(10, 50 + (i + 10)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
-			cv::putText(drawing, h, cv::Point(10, 100 + (i + 10)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+			//cv::putText(drawing, s, cv::Point(10, 50 + (i*20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+			//cv::putText(drawing, h, cv::Point(10, 100 + (i*20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
 		}
+		*/
 	}
+
+	std::string width_string = "Width: " + std::to_string(obj_x) + " mm";
+	std::string height_string = "height: " + std::to_string(obj_y) + " mm";
+
+	cv::putText(drawing, width_string, cv::Point(10, 50 ), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+	cv::putText(drawing, height_string, cv::Point(10, 100 ), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
 
 	
 	imshow("Contours", drawing);
