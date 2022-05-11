@@ -1,4 +1,4 @@
-// ComputerVisionP1.cpp : This file contains the 'main' function. Program execution begins and ends there.
+﻿// ComputerVisionP1.cpp : This file contains the 'main' function. Program execution begins and ends there.
 // const char* default_file = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/ratsche.png";
 
 /*
@@ -15,23 +15,42 @@ cv::resize(src, src, cv::Size(), 0.2, 0.2);
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 
+#include <opencv2/videoio.hpp>
+#include <opencv2/video.hpp>
+
 cv::Mat src;
 cv::Mat dst;
 
 	//const char* filename = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/ratschedturned.png";
 //const char* filename = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/P1/r.jpg";
 
-const char* filename = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/newPics/red.jpg";
+//const char* filename = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/newPics/red.jpg";
+
 //const char* filename = "r.jpg";
+const char* filename = "D:/Documents/Uni/Master/SS_22/ComputerVision/red.jpg";
+
+
+
+
+void get_src(const char* filename, cv::Mat& src)
+{
+	src = cv::imread(cv::samples::findFile(filename), cv::IMREAD_COLOR);
+}
+
+void get_src_scaled(const char* filename, cv::Mat& src)
+{
+	src = cv::imread(cv::samples::findFile(filename), cv::IMREAD_COLOR);
+	cv::resize(src, src, cv::Size(), 0.2, 0.2);
+}
 
 /// <summary>
 /// 
 /// </summary>
 /// <param name="filename"></param>
-void blur_canny(const char* filename)
+cv::Mat blur_canny(cv::Mat src)
 {
-	src = cv::imread(cv::samples::findFile(filename), cv::IMREAD_COLOR);
-	cv::resize(src, src, cv::Size(), 0.2, 0.2);
+	//src = cv::imread(cv::samples::findFile(filename), cv::IMREAD_COLOR);
+	//cv::resize(src, src, cv::Size(), 0.2, 0.2);
 
 	//threshold of 115
 	cv::Mat linedst = src.clone();
@@ -52,7 +71,55 @@ void blur_canny(const char* filename)
 
 
 
+	/* python
+	# perform edge detection + dilation + erosion to close gap
+s bt edges
+edge_detect = cv2.Canny(gray, 15, 100) #play w/min and max
+values to finetune edges (2nd n 3rd params)
+edge_detect = cv2.dilate(edge_detect, None, iterations=1)
+edge_detect = cv2.erode(edge_detect, None, iterations=1)
+	*/
+
+
+
 	//Einschub: Bounding Box
+
+	//python rotate
+	/*
+	int largest_idx = 0;
+
+    for (int idx = 0; idx < contours.size() ; idx++) {
+
+        double a = Imgproc.contourArea(contours.get(idx));  //Find the area of contour
+
+        if (a > largest_area) {
+
+            largest_area = a;
+
+            // rect = Imgproc.boundingRect(contours.get(idx));
+
+            largest_idx = idx;
+        }
+    }
+
+    MatOfPoint2f new_mat = new MatOfPoint2f( contours.get(largest_idx).toArray() );
+
+    RotatedRect rbox = Imgproc.minAreaRect(new_mat);
+
+    Log.d("rotatedrect_angle", "" + rbox.angle);
+
+    Point points[] = new Point[4];
+
+    rbox.points(points);
+
+    for(int i=0; i<4; ++i){
+        Imgproc.line(origMat, points[i], points[(i+1)%4], new Scalar(255,255,255));
+    }
+	*/
+
+
+
+
 	cv::RNG rng(12345);
 	std::vector<std::vector<cv::Point>> contours;
 	cv::Mat con_in = det_edges.clone();
@@ -70,7 +137,7 @@ void blur_canny(const char* filename)
 	{
 		approxPolyDP(contours[i], contours_poly[i], 3, true);
 
-		if (boundingRect(contours_poly[i]).height > 100)
+		if (boundingRect(contours_poly[i]).height > 500 && boundingRect(contours_poly[i]).width > 90 )
 		{
 			boundRect[i] = boundingRect(contours_poly[i]);
 		}
@@ -100,8 +167,8 @@ void blur_canny(const char* filename)
 		//circle(drawing, centers[i], (int)radius[i], color, 2);
 	}
 	// ==========
-	imshow("Canny", drawing);
-
+	return drawing;
+	//imshow("Canny", drawing);
 }
 
 
@@ -184,6 +251,318 @@ void huegh_lines(cv::Mat src)
 
 	imshow("hough", line_out);
 }
+
+
+
+
+cv::Mat colour_filter(cv::Mat src)
+{
+	cv::Mat coloursrc = src.clone();
+
+	//convert bgr to hsv colour space
+	cv::Mat hsv;
+	cvtColor(coloursrc, hsv, cv::COLOR_BGR2HSV_FULL );
+
+	const int max_value_H = 360/2;
+	const int max_value = 255;
+
+	int low_H = 0;
+	int low_S = 0;
+	int low_V = 0;
+	int high_H = max_value;
+	int high_S = max_value;
+	int high_V = max_value;
+
+	//Werte aus Gimp gemessen. Könnte nachträglich auch im Programm stattfinden:
+	/*	
+	H: 360 %	255
+	S: 123 %	87,125
+	V: 93 % 	65,87
+
+	H: 353 %	250,04
+	S: 77 %		54,54
+	V: 60 %		42,5
+	*/
+
+
+	/*
+	H: 357	252
+	S: 90	229
+	V: 90	229
+
+	H: 105 1.5	74/1
+	S: 2	2
+	V: 18	45.9
+
+	*/
+
+
+	//detect range:
+	cv::Mat dst;
+	cv::inRange(coloursrc, cv::Scalar(70, low_S, low_V), cv::Scalar(255, 255, 255), dst);
+
+	cv::Mat dest;
+	cv::Mat linedst = src.clone();
+	int low_thres = 0;
+	int high_thres = 140;	//115
+	int multi = 3;
+	int kernel = 3;
+	Canny(dst, dst, high_thres, high_thres * multi, kernel);
+
+
+	
+
+	//Einschub: Bounding Box
+	cv::RNG rng(12345);
+	std::vector<std::vector<cv::Point>> contours;
+	cv::Mat con_in = dst.clone();
+	cv::findContours(con_in, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+	std::vector<cv::Rect> boundRect(contours.size());
+	//std::vector<cv::Point2f>centers(contours.size());
+	//std::vector<float>radius(contours.size());
+
+	//minarearect
+
+	dest = cv::Scalar::all(0);
+	linedst.copyTo(dest, dst);
+
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		approxPolyDP(contours[i], contours_poly[i], 3, true);
+
+		if (boundingRect(contours_poly[i]).height > 0 && boundingRect(contours_poly[i]).width > 0)
+		{
+			boundRect[i] = boundingRect(contours_poly[i]);
+		}
+
+		//boundRect[i] = boundingRect(contours_poly[i]);
+		//minEnclosingCircle(contours_poly[i], centers[i], radius[i]);
+	}
+	cv::Mat drawing = cv::Mat::zeros(con_in.size(), CV_8UC3);
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+		drawContours(drawing, contours_poly, (int)i, color);
+		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
+
+		if (boundRect[i].height > 0 && boundRect[i].width > 0)
+		{
+			std::string s = std::to_string(boundRect[i].height);
+			std::string h = std::to_string(boundRect[i].width);
+
+			std::cout << s << std::endl;
+			std::cout << h << std::endl;
+
+			cv::putText(drawing, s, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+			cv::putText(drawing, h, cv::Point(10, 100), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+
+			//calculating mm:
+			//Distance to target: 20.3 mm
+			//focal length 1,8f
+			//Weitwinkelkamera 26mm f1.8
+			//3024 x 4032
+
+			/*
+			There is only one focal length, F. It is the distance between the focal point and the image plane.
+
+			The numbers you have, are actually not lengths. 
+			They are calculated by fx=F⋅sx and fy=F⋅sy where sx 
+			and sy are the size of your image in pixels. 
+			To get the focal length in mm as you want, simply 
+			divide fx with the width (in pixels) of your image.
+			*/
+		
+			//fx = F * sx
+			//fx = 1.8mm * 3024 = 5442.2
+			//
+		}
+
+		//circle(drawing, centers[i], (int)radius[i], color, 2);
+	}
+	
+
+	//return dst;
+	return drawing;
+}
+
+
+
+cv::Mat imbus_background_sub(cv::Mat src)
+{
+	cv::Mat res;
+	cv::Mat fg;
+	cv::Mat bkg;
+
+	cv::Mat fgMaskMOG2;
+
+	const char* background = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/background.jpg";
+	const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/imbus.jpg";
+
+	fg = cv::imread(cv::samples::findFile(imbus), cv::IMREAD_COLOR);
+	bkg = cv::imread(cv::samples::findFile(background), cv::IMREAD_COLOR);
+
+	//===== Background subtraction: =====
+	cv::Ptr< cv::BackgroundSubtractor > pBackSub;
+	pBackSub = cv::createBackgroundSubtractorMOG2();
+
+	pBackSub->apply(bkg, fgMaskMOG2);
+	cv::resize(fgMaskMOG2, fgMaskMOG2, cv::Size(), 0.2, 0.2);
+	imshow("mask: ", fgMaskMOG2);
+
+	pBackSub->apply(fg, fgMaskMOG2);
+	cv::resize(fgMaskMOG2, fgMaskMOG2, cv::Size(), 0.2, 0.2);
+	imshow("mask:", fgMaskMOG2);
+
+	cv::resize(bkg, bkg, cv::Size(), 0.2, 0.2);
+	cv::resize(fg, fg, cv::Size(), 0.2, 0.2);
+
+	imshow("foreground:",fg);
+	imshow("bakcground:",bkg);
+
+	//cv::resize(src, src, cv::Size(), 0.2, 0.2);
+	return res;
+}
+
+
+cv::Mat imbus()
+{
+	const int max_value = 255;
+
+	int low_H = 0;
+	int low_S = 0;
+	int low_V = 0;
+	int high_H = max_value;
+	int high_S = max_value;
+	int high_V = max_value;
+
+	const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/imb_dice.jpg";
+	src = cv::imread(cv::samples::findFile(imbus), cv::IMREAD_COLOR);
+
+	//convert bgr to hsv colour space
+	cv::Mat hsv;
+	cvtColor(src, hsv, cv::COLOR_BGR2HSV_FULL);
+
+	cv::Mat dst;
+	cv::inRange(hsv, cv::Scalar(low_H, low_S, low_V), cv::Scalar(360, 60, 255), dst);
+
+	cv::resize(dst, dst, cv::Size(), 0.2, 0.2);
+	imshow("hsv", dst);
+
+
+	//closing
+	cv::Mat element = cv::getStructuringElement(0, cv::Size(2* 2.5 +1, 2*2.5+1 ), cv::Point(2.5, 2.5 ));
+	cv::morphologyEx(dst, dst, 1, element);
+	imshow("closing:", dst);
+	//erosion
+	cv::Mat el = cv::getStructuringElement(0, cv::Size(2 * 1 + 1, 2 * 1 + 1), cv::Point(1, 1));
+	cv::erode(dst, dst, el);
+
+	imshow("erosion:", dst);
+
+
+	std::vector<std::vector<cv::Point>> contours;
+	cv::findContours(dst, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+	std::vector<cv::Rect> boundRect(contours.size());
+	//std::vector<cv::Rect> boundRect;
+
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		approxPolyDP(contours[i], contours_poly[i], 3, true);
+
+		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
+		{
+
+			//boundRect.push_back(boundingRect(contours_poly[i]));
+			std::cout << "push back" << std::endl;
+			boundRect[i] = boundingRect(contours_poly[i]);
+		}
+	}
+
+
+
+
+
+	cv::Mat drawing = cv::Mat::zeros(dst.size(), CV_8UC3);
+	cv::RNG rng(12345);
+
+	for (size_t i = 0; i < boundRect.size(); i++ )
+	{
+		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+		drawContours(drawing, contours_poly, (int)i, color);
+		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
+
+		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
+		{
+			std::string s = std::to_string(boundRect[i].height);
+			std::string h = std::to_string(boundRect[i].width);
+
+			std::cout << s << std::endl;
+			std::cout << h << std::endl;
+
+			cv::putText(drawing, s, cv::Point(10, 50 + (i + 10)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+			cv::putText(drawing, h, cv::Point(10, 100 + (i + 10)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+		}
+	}
+
+	
+	imshow("Contours", drawing);
+	
+
+	//cvtColor(dst, dst, cv::COLOR_HSV2BGR_FULL);
+	//dst = src.clone();
+	//cvtColor(dst, dst, cv::COLOR_BGR2GRAY);
+
+	//blur(dst, dst, cv::Size(3,3));
+
+	/*
+	cv::Mat dest;
+	cv::Mat linedst = dst.clone();
+	int low_thres = 0;
+	int high_thres = 100;	//115
+	int multi = 3;
+	int kernel = 3;
+	Canny(dst, dest, high_thres, high_thres * multi, kernel);
+	//Canny(dst, dest, 100, 100);
+	*/
+	
+
+
+
+
+
+	cv::resize(src, src, cv::Size(), 0.2, 0.2);
+	imshow("imbus:", src);
+
+	//cv::resize(dst, dst, cv::Size(), 0.2, 0.2);
+	//imshow("hsvFilter:", dst);
+
+	//cv::resize(dest, dest, cv::Size(), 0.2, 0.2);
+	//imshow("canny:", dest);
+
+
+
+
+	return dst;
+}
+
+
+/// <summary>
+/// Instead of trying to find the contours, make a picture with an empty background. Then, take the object and the difference should be 
+/// object we are trying to measure. 
+/// Possible Problem: Shadows.
+/// justification: in a stationary situation with the same lighting at every time, this is easily achivable
+/// </summary>
+/// <returns></returns>
+cv::Mat BackgroundRemoval()
+{
+	cv::Mat img;
+	return img;
+}
+
 
 
 //filter out hsv, use colored background
@@ -269,100 +648,22 @@ static void CannyThreshold(int, void*)
 
 int main()
 {
-	//loading the image
-	src = cv::imread(cv::samples::findFile(filename), cv::IMREAD_COLOR);
-	cv::resize(src, src, cv::Size(), 0.2, 0.2);
 
-	imshow("Source", src);
+	cv::Mat src;
+	//get_src_scaled(filename, src);
 
+	//cv::Mat cf = colour_filter(src);
 
-
-	/*
-	cv::namedWindow(window_name, cv::WINDOW_AUTOSIZE); // Create window
-	cv::createTrackbar("Operator:\n 0: Opening - 1: Closing  \n 2: Gradient - 3: Top Hat \n 4: Black Hat", window_name, &morph_operator, max_operator, Morphology_Operations);
-	cv::createTrackbar("Element:\n 0: Rect - 1: Cross - 2: Ellipse", window_name,
-		&morph_elem, max_elem,
-		Morphology_Operations);
-	cv::createTrackbar("Kernel size:\n 2n +1", window_name,
-		&morph_size, max_kernel_size,
-		Morphology_Operations);
-	Morphology_Operations(0, 0);
-	*/
-
-	//threshold of 115
-	cv::Mat linedst = src.clone();
-	//cv::Mat linedst = abs_dst.clone();
-	cv::Mat det_edges;
-	cv::Mat dest;
-	int low_thres = 0;
-	int high_thres = 140;	//115
-	int multi = 3;
-	int kernel = 3;
-
-	dest.create(linedst.size(), linedst.type());
-
-	cvtColor(linedst, linedst, cv::COLOR_BGR2GRAY);
-	blur(linedst, det_edges, cv::Size(3, 3));
-	det_edges.convertTo(det_edges, -1, 1, 50);
-	Canny(det_edges, det_edges, high_thres, high_thres * multi, kernel);
-
-
-
-
-	//Einschub: Bounding Box
-	cv::RNG rng(12345);
-	std::vector<std::vector<cv::Point>> contours;
-	cv::Mat con_in = det_edges.clone();
-	cv::findContours(con_in, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-
-	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
-	std::vector<cv::Rect> boundRect(contours.size());
-	//std::vector<cv::Point2f>centers(contours.size());
-	//std::vector<float>radius(contours.size());
-
-	dest = cv::Scalar::all(0);
-	linedst.copyTo(dest, det_edges);
-
-	for (size_t i = 0; i < contours.size(); i++)
-	{
-		approxPolyDP(contours[i], contours_poly[i], 3, true);
-
-		if (boundingRect(contours_poly[i]).height > 100)
-		{
-			boundRect[i] = boundingRect(contours_poly[i]);
-		}
-
-		//boundRect[i] = boundingRect(contours_poly[i]);
-		//minEnclosingCircle(contours_poly[i], centers[i], radius[i]);
-	}
-	cv::Mat drawing = cv::Mat::zeros(con_in.size(), CV_8UC3);
-	for (size_t i = 0; i < contours.size(); i++)
-	{
-		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
-		drawContours(drawing, contours_poly, (int)i, color);
-		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
-
-		if (boundRect[i].height > 0 && boundRect[i].width > 0)
-		{
-			std::string s = std::to_string(boundRect[i].height);
-			std::string h = std::to_string(boundRect[i].width);
-
-			std::cout << s << std::endl;
-			std::cout << h << std::endl;
-
-			cv::putText(drawing, s, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
-			cv::putText(drawing, h, cv::Point(10, 100), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
-		}
-
-		//circle(drawing, centers[i], (int)radius[i], color, 2);
-	}
-	// ==========
-
-
-	imshow("Contours", drawing);
-	imshow("manuell canny: ", dest);
-
+	//cv::Mat drawing = blur_canny(src);
 	
+	//imshow("colourfilter", cf);
+	//imshow("original", src);
+	//imshow("drawing", drawing);
+	
+	imbus();
+
+	//imbus_background_sub(src);
+
 	cv::waitKey();
 	return 0;
 }

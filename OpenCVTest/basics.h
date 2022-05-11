@@ -101,9 +101,106 @@ imshow("cnny", cny);
 */
 
 
-
-
 //imshow("dst", dst);
 
-
 // Wait and Exit
+
+
+
+
+//=============================
+//loading the image
+/*
+src = cv::imread(cv::samples::findFile(filename), cv::IMREAD_COLOR);
+cv::resize(src, src, cv::Size(), 0.2, 0.2);
+
+imshow("Source", src);
+*/
+
+
+/*
+cv::namedWindow(window_name, cv::WINDOW_AUTOSIZE); // Create window
+cv::createTrackbar("Operator:\n 0: Opening - 1: Closing  \n 2: Gradient - 3: Top Hat \n 4: Black Hat", window_name, &morph_operator, max_operator, Morphology_Operations);
+cv::createTrackbar("Element:\n 0: Rect - 1: Cross - 2: Ellipse", window_name,
+	&morph_elem, max_elem,
+	Morphology_Operations);
+cv::createTrackbar("Kernel size:\n 2n +1", window_name,
+	&morph_size, max_kernel_size,
+	Morphology_Operations);
+Morphology_Operations(0, 0);
+*/
+
+/*
+//threshold of 115
+cv::Mat linedst = src.clone();
+//cv::Mat linedst = abs_dst.clone();
+cv::Mat det_edges;
+cv::Mat dest;
+int low_thres = 0;
+int high_thres = 140;	//115
+int multi = 3;
+int kernel = 3;
+
+dest.create(linedst.size(), linedst.type());
+
+cvtColor(linedst, linedst, cv::COLOR_BGR2GRAY);
+blur(linedst, det_edges, cv::Size(3, 3));
+det_edges.convertTo(det_edges, -1, 1, 50);
+Canny(det_edges, det_edges, high_thres, high_thres * multi, kernel);
+
+
+
+
+//Einschub: Bounding Box
+cv::RNG rng(12345);
+std::vector<std::vector<cv::Point>> contours;
+cv::Mat con_in = det_edges.clone();
+cv::findContours(con_in, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+std::vector<cv::Rect> boundRect(contours.size());
+//std::vector<cv::Point2f>centers(contours.size());
+//std::vector<float>radius(contours.size());
+
+dest = cv::Scalar::all(0);
+linedst.copyTo(dest, det_edges);
+
+for (size_t i = 0; i < contours.size(); i++)
+{
+	approxPolyDP(contours[i], contours_poly[i], 3, true);
+
+	if (boundingRect(contours_poly[i]).height > 100)
+	{
+		boundRect[i] = boundingRect(contours_poly[i]);
+	}
+
+	//boundRect[i] = boundingRect(contours_poly[i]);
+	//minEnclosingCircle(contours_poly[i], centers[i], radius[i]);
+}
+cv::Mat drawing = cv::Mat::zeros(con_in.size(), CV_8UC3);
+for (size_t i = 0; i < contours.size(); i++)
+{
+	cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+	drawContours(drawing, contours_poly, (int)i, color);
+	rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
+
+	if (boundRect[i].height > 0 && boundRect[i].width > 0)
+	{
+		std::string s = std::to_string(boundRect[i].height);
+		std::string h = std::to_string(boundRect[i].width);
+
+		std::cout << s << std::endl;
+		std::cout << h << std::endl;
+
+		cv::putText(drawing, s, cv::Point(10, 50), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+		cv::putText(drawing, h, cv::Point(10, 100), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+	}
+
+	//circle(drawing, centers[i], (int)radius[i], color, 2);
+}
+// ==========
+
+
+imshow("Contours", drawing);
+imshow("manuell canny: ", dest);
+*/
