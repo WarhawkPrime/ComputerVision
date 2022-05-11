@@ -477,9 +477,22 @@ cv::Mat imbus()
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(dst, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 
-	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
-	std::vector<cv::Rect> boundRect(contours.size());
+	//====================
+	std::vector<cv::RotatedRect> minRect(contours.size());
+	std::vector<cv::RotatedRect> minRectOnly;
+	
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		minRect[i] = cv::minAreaRect(contours[i]);
+	}
 
+	cv::Mat drawingR = cv::Mat::zeros(dst.size(), CV_8UC3);
+
+	//=====================
+
+	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+
+	std::vector<cv::Rect> boundRect(contours.size());
 	std::vector<cv::Rect> boundRectOnly;
 
 	//adding rects to vector. TODO: minareaRect
@@ -502,6 +515,7 @@ cv::Mat imbus()
 	cv::Rect reference;
 	cv::Rect object;
 
+	//calculating which is the reference, which is the object
 	double ref_x = 0, ref_y = 0, obj_x = 0, obj_y = 0;
 	for (auto& ele : boundRectOnly)
 	{
@@ -552,7 +566,8 @@ cv::Mat imbus()
 	std::cout << " height in mm: " << obj_y << std::endl;
 
 
-
+	cv::resize(src, src, cv::Size(), scaling, scaling);
+	imshow("original: ", src);
 	//drawing the contours and rects
 	cv::Mat drawing = cv::Mat::zeros(dst.size(), CV_8UC3);
 	cv::RNG rng(12345);
@@ -560,8 +575,8 @@ cv::Mat imbus()
 	for (size_t i = 0; i < boundRect.size(); i++ )
 	{
 		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
-		drawContours(drawing, contours_poly, (int)i, color);
-		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
+		drawContours(src, contours_poly, (int)i, color);
+		rectangle(src, boundRect[i].tl(), boundRect[i].br(), color, 2);
 
 		/*
 		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
@@ -582,11 +597,11 @@ cv::Mat imbus()
 	std::string width_string = "Width: " + std::to_string(obj_x) + " mm";
 	std::string height_string = "height: " + std::to_string(obj_y) + " mm";
 
-	cv::putText(drawing, width_string, cv::Point(10, 50 ), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
-	cv::putText(drawing, height_string, cv::Point(10, 100 ), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+	cv::putText(src, width_string, cv::Point(10, 50 ), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+	cv::putText(src, height_string, cv::Point(10, 100 ), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
 
 	
-	imshow("Contours", drawing);
+	imshow("Contours", src);
 	
 
 	//cvtColor(dst, dst, cv::COLOR_HSV2BGR_FULL);
@@ -611,8 +626,8 @@ cv::Mat imbus()
 
 
 
-	cv::resize(src, src, cv::Size(), 0.2, 0.2);
-	imshow("imbus:", src);
+	//cv::resize(src, src, cv::Size(), scaling, scaling);
+	//imshow("imbus:", src);
 
 	//cv::resize(dst, dst, cv::Size(), 0.2, 0.2);
 	//imshow("hsvFilter:", dst);
@@ -702,17 +717,17 @@ static void CannyThreshold(int, void*)
 	LUT(detected_edges, lookUpTable, detected_edges);
 	//imshow("gamma", res);
 	*/
-	/*
-		Canny(detected_edges, detected_edges, lowThreshold, lowThreshold * ratio, kernel_size);
+/*
+	Canny(detected_edges, detected_edges, lowThreshold, lowThreshold * ratio, kernel_size);
 
-		//cv::Mat edges = detected_edges.clone();
+	//cv::Mat edges = detected_edges.clone();
 
 
-		dst = cv::Scalar::all(0);
-		src.copyTo(dst, detected_edges);
-		imshow(window_name, dst);
-	}
-	*/
+	dst = cv::Scalar::all(0);
+	src.copyTo(dst, detected_edges);
+	imshow(window_name, dst);
+}
+*/
 
 	/*
 		dst.create(src.size(), src.type());
