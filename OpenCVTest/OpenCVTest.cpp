@@ -287,7 +287,11 @@ cv::Mat imbus()
 	cv::Mat dst;
 
 	//global scaling
-	const double scaling = 0.20;
+	//desktop
+	//const double scaling = 0.20; //105 as threshold for rects
+
+	//laptop
+	const double scaling = 0.15;	//80 as Theshold for rects
 
 	//const values 
 	const double image_width = 3024;
