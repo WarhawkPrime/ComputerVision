@@ -86,8 +86,9 @@ double angled_measurement(cv::Mat src, std::vector<std::vector<cv::Point>> conto
 		{
 			minRect[i] = cv::minAreaRect(contours[i]);
 
-			if (cv::minAreaRect(contours[i]).size.height > 105 && cv::minAreaRect(contours[i]).size.width > 105)
-				minRectOnly.push_back(cv::minAreaRect(contours[i]));
+			to_measure(minRectOnly, cv::minAreaRect(contours[i]));
+
+			//minRectOnly.push_back(cv::minAreaRect(contours[i]));
 		}
 	}
 	
@@ -154,7 +155,7 @@ double measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, do
 		//approximates curves
 		approxPolyDP(contours[i], contours_poly[i], 3, true);
 
-		if (boundingRect(contours_poly[i]).height > 105 && boundingRect(contours_poly[i]).width > 105)
+		if (boundingRect(contours_poly[i]).height > 80 && boundingRect(contours_poly[i]).width > 80)
 		{
 			boundRectOnly.push_back(boundingRect(contours_poly[i]));
 			boundRect[i] = boundingRect(contours_poly[i]);
