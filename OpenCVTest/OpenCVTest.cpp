@@ -45,7 +45,7 @@ double calc_px_per_mm(double width, double height, double width1, double height1
 		obj_width = width1;
 		obj_height = height1;
 	}
-	else 
+	else
 	{
 		ref_width = width1;
 		ref_height = height1;
@@ -86,22 +86,21 @@ double angled_measurement(cv::Mat src, std::vector<std::vector<cv::Point>> conto
 		{
 			minRect[i] = cv::minAreaRect(contours[i]);
 
-			to_measure(minRectOnly, cv::minAreaRect(contours[i]));
-
-			//minRectOnly.push_back(cv::minAreaRect(contours[i]));
+			if (cv::minAreaRect(contours[i]).size.height > 105 && cv::minAreaRect(contours[i]).size.width > 105)
+				minRectOnly.push_back(cv::minAreaRect(contours[i]));
 		}
 	}
-	
+
 	double px_per_mm = 0;
 
 	//calculating size with the only 2 relevant minRectOnlys
 	if (minRectOnly.size() == 2)
 	{
-		px_per_mm = calc_px_per_mm(minRectOnly.at(0).size.width, 
-									minRectOnly.at(0).size.height, 
-									minRectOnly.at(1).size.width, 
-									minRectOnly.at(1).size.height, 
-									reference_side_length);
+		px_per_mm = calc_px_per_mm(minRectOnly.at(0).size.width,
+			minRectOnly.at(0).size.height,
+			minRectOnly.at(1).size.width,
+			minRectOnly.at(1).size.height,
+			reference_side_length);
 	}
 
 	//===== drawing of the contours =====
@@ -155,7 +154,7 @@ double measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, do
 		//approximates curves
 		approxPolyDP(contours[i], contours_poly[i], 3, true);
 
-		if (boundingRect(contours_poly[i]).height > 80 && boundingRect(contours_poly[i]).width > 80)
+		if (boundingRect(contours_poly[i]).height > 105 && boundingRect(contours_poly[i]).width > 105)
 		{
 			boundRectOnly.push_back(boundingRect(contours_poly[i]));
 			boundRect[i] = boundingRect(contours_poly[i]);
@@ -167,11 +166,11 @@ double measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, do
 	//calculating size with the only 2 relevant minRectOnlys
 	if (boundRectOnly.size() == 2)
 	{
-		px_per_mm = calc_px_per_mm(boundRectOnly.at(0).width, 
-									boundRectOnly.at(0).height, 
-									boundRectOnly.at(1).width, 
-									boundRectOnly.at(1).height, 
-									reference_side_length);
+		px_per_mm = calc_px_per_mm(boundRectOnly.at(0).width,
+			boundRectOnly.at(0).height,
+			boundRectOnly.at(1).width,
+			boundRectOnly.at(1).height,
+			reference_side_length);
 	}
 
 	//drawing the contours and rects
@@ -185,7 +184,7 @@ double measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, do
 		drawContours(drawing, contours_poly, (int)i, color);
 		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
 	}
-	
+
 	imshow("measurement", drawing);
 
 	return px_per_mm;
@@ -258,7 +257,7 @@ void calc_dimensions(std::vector<std::vector<cv::Point>> contours, cv::Mat src, 
 	double width = lengths.at(1);
 	double length = lengths.at(2);
 
-	std::cout << "WIDTH: " << width/ px_to_mm << std::endl;
+	std::cout << "WIDTH: " << width / px_to_mm << std::endl;
 	std::cout << "LENGTH: " << length / px_to_mm << std::endl;
 
 	//===== draw dots =====
@@ -288,11 +287,7 @@ cv::Mat imbus()
 	cv::Mat dst;
 
 	//global scaling
-	//desktop
-	//const double scaling = 0.20; //105 as threshold for rects
-
-	//laptop
-	const double scaling = 0.15;	//80 as Theshold for rects
+	const double scaling = 0.20;
 
 	//const values 
 	const double image_width = 3024;
@@ -303,7 +298,7 @@ cv::Mat imbus()
 
 	//maximum value for hsv
 	const int max_value = 255;
-	
+
 	//variables to filter out a value in hsv
 	int low_H = 0;
 	int low_S = 0;
@@ -333,13 +328,13 @@ cv::Mat imbus()
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(dst, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
 	imshow("cont: ", dst);
-	
+
 	//calculate the rect measuremts and get the ratio
 	double px_to_mm_a = angled_measurement(dst, contours, reference_side_length, src);
 	double px_to_mm_r = measurement(dst, contours, reference_side_length, src);
-	
+
 	//calculate the dimension via the reference and the extrem points of the contours
-	calc_dimensions(contours, src, (px_to_mm_a + px_to_mm_r)/2 );
+	calc_dimensions(contours, src, (px_to_mm_a + px_to_mm_r) / 2);
 
 	return dst;
 }
