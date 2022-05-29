@@ -841,3 +841,247 @@ const int kernel_size = 3;
 const char* window_name = "Edge Map";
 
 */
+
+
+
+
+
+void hugh_lines(cv::Mat src, std::vector<std::vector<cv::Point>> contours, double reference_side_length, cv::Mat original)
+{
+	//probabilistic hough line transformation
+	/*
+	std::vector<cv::Vec4i> lines;
+	cv::HoughLinesP(dest, lines, 1, CV_PI / 180, 50, 50, 10);
+	*/
+
+	//draw lines
+	/*
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		cv::Vec4i l = lines[i];
+		cv::line(line_out, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]), cv::Scalar(0, 0, 255), 3, cv::LINE_AA);
+	}
+	*/
+
+	cv::Mat dst = src.clone();
+	cv::Mat line_out = original.clone();
+
+
+	//CV_8U type
+	cv::Mat t;
+
+	cv::cvtColor(dst, t, cv::COLOR_GRAY2BGR);
+	cv::cvtColor(t, dst, cv::COLOR_BGR2GRAY);
+
+	// canny edge detection
+/*
+cv::Mat cny = dst.clone();
+cv::Canny(dst, cny, 50, 200, 23);
+imshow("cnny", cny);
+*/
+
+	cv::Mat dest;
+	cv::Mat linedst = dst.clone();
+	int low_thres = 0;
+	int high_thres = 140;	//115
+	int multi = 3;
+	int kernel = 3;
+	Canny(dst, dst, high_thres, high_thres * multi, kernel);
+
+
+
+	//cv::cvtColor(dest, dst, cv::COLOR_GRAY2BGR);
+	line_out = dst.clone();
+
+	//probabilistic hough line transformation
+	std::vector<cv::Vec4i> lines;
+	cv::HoughLinesP(dst, lines, 1, CV_PI / 180, 10, 10, 50);
+
+	//draw lines
+	for (size_t i = 0; i < lines.size(); i++)
+	{
+		cv::Vec4i l = lines[i];
+		cv::line(line_out, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]), cv::Scalar(0, 0, 255), 3, cv::LINE_AA);
+	}
+
+
+	//cv::cvtColor(dst, canny_out, cv::COLOR_BGR2GRAY);
+	//cvCvtColor(img, gray, CV_BGR2GRAY);
+
+	//std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+
+
+	/*
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		approxPolyDP(contours[i], contours_poly[i], 3, true);
+
+	}
+
+	cv::RNG rng(12345);
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+		drawContours(dst, contours_poly, (int)i, color);
+	}
+
+	std::cout << "cont size: " << contours_poly.size() << std::endl;
+	*/
+
+
+
+
+
+
+	imshow("lines: ", dst);
+
+	imshow("lines 2: ", line_out);
+
+}
+
+
+
+/// <summary>
+/// Instead of trying to find the contours, make a picture with an empty background. Then, take the object and the difference should be 
+/// object we are trying to measure. 
+/// Possible Problem: Shadows.
+/// justification: in a stationary situation with the same lighting at every time, this is easily achivable
+/// </summary>
+/// <returns></returns>
+cv::Mat BackgroundRemoval()
+{
+	cv::Mat img;
+	return img;
+}
+
+
+
+
+//points rotatedRect
+//calc Euclidian distances
+/*
+{
+
+cv::Point2f points[4];
+minRectOnly.at(1).points(points);
+
+double tm_rm_d = cv::norm(points[2] - points[3]);
+double rm_bm_d = cv::norm(points[3] - points[0]);
+double bm_lm_d = cv::norm(points[0] - points[1]);
+double lm_tm_d = cv::norm(points[1] - points[2]);
+
+std::vector<double> lengths;
+lengths.push_back(tm_rm_d);
+lengths.push_back(rm_bm_d);
+lengths.push_back(bm_lm_d);
+lengths.push_back(lm_tm_d);
+
+std::sort(lengths.begin(), lengths.end());
+
+std::cout << "lengths" << std::endl;
+for (const auto& l : lengths)
+{
+	std::cout << "length: " << l << std::endl;
+}
+
+double width = lengths.at(1);
+double length = lengths.at(2);
+
+std::cout << "WIDTH 1: " << width / px_per_mm << std::endl;
+std::cout << "LENGTH 1: " << length / px_per_mm << std::endl;
+}
+*/
+
+
+
+//================================
+/*
+double measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, double reference_side_length, cv::Mat original)
+{
+
+	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+
+	std::vector<cv::Rect> boundRect(contours.size());
+	std::vector<cv::Rect> boundRectOnly;
+
+	//adding rects to vector. TODO: minareaRect
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		approxPolyDP(contours[i], contours_poly[i], 3, true);
+
+		if (boundingRect(contours_poly[i]).height > 105 && boundingRect(contours_poly[i]).width > 105)
+		{
+			boundRectOnly.push_back(boundingRect(contours_poly[i]));
+			boundRect[i] = boundingRect(contours_poly[i]);
+		}
+	}
+
+	double px_per_mm = 0;
+
+	if (boundRectOnly.size() == 2)
+	{
+		px_per_mm = calc_px_per_mm(boundRectOnly.at(0).width, boundRectOnly.at(0).height, boundRectOnly.at(1).width, boundRectOnly.at(1).height, reference_side_length);
+
+		double real_width = boundRectOnly.at(0).width / px_per_mm;
+		double real_height = boundRectOnly.at(0).height / px_per_mm;
+
+		double real_width1 = boundRectOnly.at(1).width / px_per_mm;
+		double real_height1 = boundRectOnly.at(1).height / px_per_mm;
+
+		//std::cout << "rec real width: " << real_width << std::endl;
+		//std::cout << "rec real height: " << real_height << std::endl;
+
+		//std::cout << "rec real width 1: " << real_width1 << std::endl;
+		//std::cout << "rec real width 1: " << real_height1 << std::endl;
+	}
+
+	//drawing the contours and rects
+	//cv::Mat drawing = cv::Mat::zeros(src.size(), CV_8UC3);
+	cv::Mat drawing = original.clone();
+	cv::RNG rng(12345);
+
+	for (size_t i = 0; i < boundRect.size(); i++)
+	{
+		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
+		drawContours(drawing, contours_poly, (int)i, color);
+		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
+
+		/*
+		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
+		{
+
+			std::string s = std::to_string(boundRect[i].height);
+			std::string h = std::to_string(boundRect[i].width);
+
+			std::cout << s << std::endl;
+			std::cout << h << std::endl;
+
+			//cv::putText(drawing, s, cv::Point(10, 50 + (i*20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+			//cv::putText(drawing, h, cv::Point(10, 100 + (i*20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
+		}
+		*/
+/*
+	}
+
+	//cv::resize(drawing, drawing, cv::Size(), 0.4, 0.4);
+	imshow("Contours method:", drawing);
+
+	return px_per_mm;
+}
+
+
+*/
+
+
+/*
+	//closing to fill small gaps
+	cv::Mat element = cv::getStructuringElement(0, cv::Size(2* 2.5 +1, 2*2.5+1 ), cv::Point(2.5, 2.5 ));
+	cv::morphologyEx(dst, dst, 1, element);
+		//imshow("closing:", dst);
+
+	//erosion to adjust the unneccessary effects of the closing morphology
+	cv::Mat el = cv::getStructuringElement(0, cv::Size(2 * 1 + 1, 2 * 1 + 1), cv::Point(1, 1));
+	cv::erode(dst, dst, el);
+	cv::erode(dst, dst, el);
+		//imshow("erosion:", dst);
+	*/

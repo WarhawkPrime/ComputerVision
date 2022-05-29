@@ -1,14 +1,5 @@
 ﻿// ComputerVisionP1.cpp : This file contains the 'main' function. Program execution begins and ends there.
-// const char* default_file = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/ratsche.png";
 
-/*
-const char* default_file = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/ratsche.png";
-const char* filename = argc >= 2 ? argv[1] : default_file;
-// Loads an image
-Mat src = imread(samples::findFile(filename), IMREAD_GRAYSCALE);
-
-cv::resize(src, src, cv::Size(), 0.2, 0.2);
-*/
 #include <iostream>
 
 #include "opencv2/imgcodecs.hpp"
@@ -17,18 +8,6 @@ cv::resize(src, src, cv::Size(), 0.2, 0.2);
 
 #include <opencv2/videoio.hpp>
 #include <opencv2/video.hpp>
-
-cv::Mat src;
-cv::Mat dst;
-
-	//const char* filename = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/ratschedturned.png";
-//const char* filename = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/P1/r.jpg";
-
-//const char* filename = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/newPics/red.jpg";
-
-//const char* filename = "r.jpg";
-//const char* filename = "D:/Documents/Uni/Master/SS_22/ComputerVision/red.jpg";
-
 
 
 void get_src(const char* filename, cv::Mat& src)
@@ -42,7 +21,18 @@ void get_src_scaled(const char* filename, cv::Mat& src)
 	cv::resize(src, src, cv::Size(), 0.2, 0.2);
 }
 
-
+/// <summary>
+/// calculates the pixel per millimetre. The function assumes that the bigger rect is the object
+/// and the smaller one is the reference object. "reference_side_length" measures the real-world
+/// measurements for the reference object. With this, it is trivial to calculate the pixel to
+/// millimetre ratio. This ratio is returned as a double value.
+/// </summary>
+/// <param name="width"></param>
+/// <param name="height"></param>
+/// <param name="width1"></param>
+/// <param name="height1"></param>
+/// <param name="reference_side_length"></param>
+/// <returns></returns>
 double calc_px_per_mm(double width, double height, double width1, double height1, double reference_side_length)
 {
 	double ref_width = 0, ref_height = 0, obj_width = 0, obj_height = 0;
@@ -67,22 +57,31 @@ double calc_px_per_mm(double width, double height, double width1, double height1
 	double width_rel = ref_width / reference_side_length;
 	double height_rel = ref_height / reference_side_length;
 
-	double px_per_mm = (width_rel + height_rel) / 2;	//px pro mm
+	double px_per_mm = (width_rel + height_rel) / 2;	//px per mm
 
 	return px_per_mm;
 }
 
 
-
-void angled_measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, double reference_side_length, cv::Mat original)
+/// <summary>
+/// measures and calculates the sides of a rotated Rect around the object. Returns the ratio of pixel per millimetre
+/// </summary>
+/// <param name="src"></param>
+/// <param name="contours"></param>
+/// <param name="reference_side_length"></param>
+/// <param name="original"></param>
+/// <returns></returns>
+double angled_measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, double reference_side_length, cv::Mat original)
 {
+	//vectors for the minRects. minRectOnly holds the two relevant rects of the object and reference object
 	std::vector<cv::RotatedRect> minRect(contours.size());
 	std::vector<cv::RotatedRect> minRectOnly;
 
-	
+
 	//TODO: instead fix threshold, take only the two largest rects
 	for (size_t i = 0; i < contours.size(); i++)
 	{
+		//minAreaRects finds the area with the minimum area.
 		if (cv::minAreaRect(contours[i]).size.height > 105 && cv::minAreaRect(contours[i]).size.width > 105)
 		{
 			minRect[i] = cv::minAreaRect(contours[i]);
@@ -90,43 +89,30 @@ void angled_measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contour
 			if (cv::minAreaRect(contours[i]).size.height > 105 && cv::minAreaRect(contours[i]).size.width > 105)
 				minRectOnly.push_back(cv::minAreaRect(contours[i]));
 		}
-	
-		
 	}
-	cv::RNG rot_rng(12345);
+	
+	double px_per_mm = 0;
 
-	//cv::Mat drawingR = cv::Mat::zeros(src.size(), CV_8UC3);
-	cv::Mat drawingR = original.clone();
-
-	std::cout << "angled contours size: " << contours.size() << std::endl;
-	std::cout << "angled contours size only: " << minRectOnly.size() << std::endl;
-
-	//calculating size:
+	//calculating size with the only 2 relevant minRectOnlys
 	if (minRectOnly.size() == 2)
 	{
-
-		double px_per_mm = calc_px_per_mm(minRectOnly.at(0).size.width, minRectOnly.at(0).size.height, minRectOnly.at(1).size.width, minRectOnly.at(1).size.height, reference_side_length);
-	
-		double real_width = minRectOnly.at(0).size.width / px_per_mm;
-		double real_height = minRectOnly.at(0).size.height / px_per_mm;
-		
-		double real_width1 = minRectOnly.at(1).size.width / px_per_mm;
-		double real_height1 = minRectOnly.at(1).size.height / px_per_mm;
-
-		std::cout << "real width: " << real_width << std::endl;
-		std::cout << "real height: " << real_height << std::endl;
-
-		std::cout << "real width 1: " << real_width1 << std::endl;
-		std::cout << "real width 1: " << real_height1 << std::endl;
+		px_per_mm = calc_px_per_mm(minRectOnly.at(0).size.width, 
+									minRectOnly.at(0).size.height, 
+									minRectOnly.at(1).size.width, 
+									minRectOnly.at(1).size.height, 
+									reference_side_length);
 	}
-		
 
+	//===== drawing of the contours =====
 
-	//drawing
+	//random for colours
+	cv::RNG rot_rng(12345);
+	cv::Mat drawingR = original.clone();
+
 	for (size_t i = 0; i < contours.size(); i++)
 	{
 		cv::Scalar color = cv::Scalar(rot_rng.uniform(0, 256), rot_rng.uniform(0, 256), rot_rng.uniform(0, 256));
-		// contour
+
 		drawContours(drawingR, contours, (int)i, color);
 
 		// rotated rectangle
@@ -137,49 +123,54 @@ void angled_measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contour
 			line(drawingR, rect_points[j], rect_points[(j + 1) % 4], color);
 		}
 	}
-	imshow("angled: ", drawingR);
+
+	imshow("angled_measurement", drawingR);
+
+	return px_per_mm;
 }
 
 
 
-
-void measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, double reference_side_length, cv::Mat original)
+/// <summary>
+/// measures and calculates the sides of a Rect around the object. Returns the ratio of pixel per millimetre
+/// </summary>
+/// <param name="src"></param>
+/// <param name="contours"></param>
+/// <param name="reference_side_length"></param>
+/// <param name="original"></param>
+/// <returns></returns>
+double measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, double reference_side_length, cv::Mat original)
 {
-
+	//vector to hold the approxPolyDP
 	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
 
+	//vectors for the minRects. minRectOnly holds the two relevant rects of the object and reference object
 	std::vector<cv::Rect> boundRect(contours.size());
 	std::vector<cv::Rect> boundRectOnly;
 
 	//adding rects to vector. TODO: minareaRect
 	for (size_t i = 0; i < contours.size(); i++)
 	{
+		//approximates curves
 		approxPolyDP(contours[i], contours_poly[i], 3, true);
 
 		if (boundingRect(contours_poly[i]).height > 105 && boundingRect(contours_poly[i]).width > 105)
 		{
 			boundRectOnly.push_back(boundingRect(contours_poly[i]));
-			std::cout << "push back" << std::endl;
 			boundRect[i] = boundingRect(contours_poly[i]);
 		}
 	}
 
+	double px_per_mm = 0;
 
+	//calculating size with the only 2 relevant minRectOnlys
 	if (boundRectOnly.size() == 2)
 	{
-		double px_per_mm = calc_px_per_mm(boundRectOnly.at(0).width, boundRectOnly.at(0).height, boundRectOnly.at(1).width, boundRectOnly.at(1).height, reference_side_length);
-
-		double real_width = boundRectOnly.at(0).width / px_per_mm;
-		double real_height = boundRectOnly.at(0).height / px_per_mm;
-
-		double real_width1 = boundRectOnly.at(1).width / px_per_mm;
-		double real_height1 = boundRectOnly.at(1).height / px_per_mm;
-
-		std::cout << "rec real width: " << real_width << std::endl;
-		std::cout << "rec real height: " << real_height << std::endl;
-
-		std::cout << "rec real width 1: " << real_width1 << std::endl;
-		std::cout << "rec real width 1: " << real_height1 << std::endl;
+		px_per_mm = calc_px_per_mm(boundRectOnly.at(0).width, 
+									boundRectOnly.at(0).height, 
+									boundRectOnly.at(1).width, 
+									boundRectOnly.at(1).height, 
+									reference_side_length);
 	}
 
 	//drawing the contours and rects
@@ -192,31 +183,109 @@ void measurement(cv::Mat src, std::vector<std::vector<cv::Point>> contours, doub
 		cv::Scalar color = cv::Scalar(rng.uniform(0, 256), rng.uniform(0, 256), rng.uniform(0, 256));
 		drawContours(drawing, contours_poly, (int)i, color);
 		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2);
-
-		/*
-		if (boundingRect(contours_poly[i]).height > 30 && boundingRect(contours_poly[i]).width > 30)
-		{
-
-			std::string s = std::to_string(boundRect[i].height);
-			std::string h = std::to_string(boundRect[i].width);
-
-			std::cout << s << std::endl;
-			std::cout << h << std::endl;
-
-			//cv::putText(drawing, s, cv::Point(10, 50 + (i*20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
-			//cv::putText(drawing, h, cv::Point(10, 100 + (i*20)), cv::FONT_HERSHEY_SIMPLEX, 1.0, CV_RGB(118, 185, 0), 2, cv::LINE_AA, false);
-		}
-		*/
 	}
 	
-	//cv::resize(drawing, drawing, cv::Size(), 0.4, 0.4);
-	imshow("Contours method:", drawing);
+	imshow("measurement", drawing);
+
+	return px_per_mm;
+}
+
+
+/// <summary>
+/// calculates the dimensions of the object. The function determines the contour with the biggest area, which is our object
+/// From this contour, we can determine the 4 extreme points in the x and y axis. This way, we are not restricted by a Rect.
+/// We then calculate the length of the vectors between the 4 points. 
+/// We know from the outlines of an imbus, that we need the second and third largest lines for the correct measurements
+/// </summary>
+/// <param name="contours"></param>
+/// <param name="src"></param>
+/// <param name="px_to_mm"></param>
+void calc_dimensions(std::vector<std::vector<cv::Point>> contours, cv::Mat src, double px_to_mm)
+{
+	//find moments of contours and biggest contour (our object)
+	std::vector<cv::Point> object_contour;
+	double area = 0;
+	size_t id = 0;
+
+	for (size_t i = 0; i < contours.size(); i++)
+	{
+		if (cv::contourArea(contours[i]) > area)
+		{
+			area = cv::contourArea(contours[i]);
+			id = i;
+		}
+	}
+
+
+	//biggest contour => our object
+	object_contour = contours[id];
+
+	//use std::minmax_element to find the extreme points
+	auto val_x = std::minmax_element(object_contour.begin(), object_contour.end(), [](cv::Point const& a, cv::Point const& b)
+		{
+			return a.x < b.x;
+		});
+
+	auto val_y = std::minmax_element(object_contour.begin(), object_contour.end(), [](cv::Point const& a, cv::Point const& b)
+		{
+			return a.y < b.y;
+		});
+
+
+	//create the 4 points
+	cv::Point leftMost(val_x.first->x, val_x.first->y);
+	cv::Point rightMost(val_x.second->x, val_x.second->y);
+	cv::Point topMost(val_y.first->x, val_y.first->y);
+	cv::Point bottomMost(val_y.second->x, val_y.second->y);
+
+	//calc Euclidian distances
+	double tm_rm_d = cv::norm(topMost - rightMost);
+	double rm_bm_d = cv::norm(rightMost - bottomMost);
+	double bm_lm_d = cv::norm(bottomMost - leftMost);
+	double lm_tm_d = cv::norm(leftMost - topMost);
+
+	//sort lines
+	std::vector<double> lengths;
+	lengths.push_back(tm_rm_d);
+	lengths.push_back(rm_bm_d);
+	lengths.push_back(bm_lm_d);
+	lengths.push_back(lm_tm_d);
+
+	std::sort(lengths.begin(), lengths.end());
+
+	//the measurements are
+	double width = lengths.at(1);
+	double length = lengths.at(2);
+
+	std::cout << "WIDTH: " << width/ px_to_mm << std::endl;
+	std::cout << "LENGTH: " << length / px_to_mm << std::endl;
+
+	//===== draw dots =====
+	cv::RNG rng(12345);
+	cv::Scalar color = cv::Scalar(255, 0, 0);
+
+	cv::Mat dots = src.clone();
+
+	cv::circle(dots, leftMost, 10, color, -1);
+	cv::circle(dots, rightMost, 10, color, -1);
+	cv::circle(dots, topMost, 10, color, -1);
+	cv::circle(dots, bottomMost, 10, color, -1);
+
+	imshow("dots: ", dots);
 }
 
 
 
+/// <summary>
+/// reads image, carries out image processing, finds the contours of the objects and calls the functions
+/// angled_measurement, measurement and calc_dimensions
+/// </summary>
+/// <returns></returns>
 cv::Mat imbus()
 {
+	cv::Mat src;
+	cv::Mat dst;
+
 	//global scaling
 	const double scaling = 0.20;
 
@@ -224,11 +293,7 @@ cv::Mat imbus()
 	const double image_width = 3024;
 	const double image_height = 4032;
 
-	//reference length of dice in millimeter
-		//dice	
-		//const double reference_side_length = 15;	//in mm
-
-	//unterlegscheibe
+	//unterlegscheibe reference
 	const double reference_side_length = 40;	//in mm
 
 	//maximum value for hsv
@@ -243,14 +308,7 @@ cv::Mat imbus()
 	int high_V = max_value;
 
 	//file selection
-		//desktop
-	//const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/imb_dice.jpg";
-	//const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/imbus/turned_dice.jpg";
-
 	const char* imbus = "D:/Documents/Uni/Master/SS_22/ComputerVision/P1/ComputerVisionP1/unterlegscheibe/turned.jpg";
-
-		//laptop
-	//const char* imbus = "C:/Users/denni/Documents/Uni/Master_SS_2022/CompVision/Praktika/imbus/imbus_dice.jpg";
 
 	//reading image
 	src = cv::imread(cv::samples::findFile(imbus), cv::IMREAD_COLOR);
@@ -258,68 +316,34 @@ cv::Mat imbus()
 	//resizing image to fit the screen. use global scaling:
 	cv::resize(src, src, cv::Size(), scaling, scaling);
 
-
-	//convert bgr to hsv colour space
+	//converts bgr to hsv colour space
 	cv::Mat hsv;
 	cvtColor(src, hsv, cv::COLOR_BGR2HSV_FULL);
 
-	//filter for specific hsv range (exluding the red background S: red < 60)
-	cv::Mat dst;
-	//cv::inRange(hsv, cv::Scalar(low_H, low_S, low_V), cv::Scalar(360, 60, 255), dst);
-
-	//new pic:
-	cv::inRange(hsv, cv::Scalar(low_H, low_S, low_V), cv::Scalar(360, 85, 255), dst);
-		//imshow("hsv filter: ", dst);
-
-
-	//closing to fill gaps in dice (fault of dice, in an optimal environment this is not needed)
-	cv::Mat element = cv::getStructuringElement(0, cv::Size(2* 2.5 +1, 2*2.5+1 ), cv::Point(2.5, 2.5 ));
-	cv::morphologyEx(dst, dst, 1, element);
-		//imshow("closing:", dst);
-
-	//erosion to adjust the unneccessary effects of the closing morphology
-	cv::Mat el = cv::getStructuringElement(0, cv::Size(2 * 1 + 1, 2 * 1 + 1), cv::Point(1, 1));
-	cv::erode(dst, dst, el);
-	cv::erode(dst, dst, el);
-		//imshow("erosion:", dst);
-	
+	//filters out the red color
+	cv::inRange(hsv, cv::Scalar(low_H, low_S, low_V), cv::Scalar(360, 100, 255), dst);
+	imshow("hsv filter: ", dst);
 
 	//finding contours
 	std::vector<std::vector<cv::Point>> contours;
 	cv::findContours(dst, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
-
-	//angled measurments
-	angled_measurement(dst, contours, reference_side_length, src);
-
-	measurement(dst, contours, reference_side_length, src);
+	imshow("cont: ", dst);
+	
+	//calculate the rect measuremts and get the ratio
+	double px_to_mm_a = angled_measurement(dst, contours, reference_side_length, src);
+	double px_to_mm_r = measurement(dst, contours, reference_side_length, src);
+	
+	//calculate the dimension via the reference and the extrem points of the contours
+	calc_dimensions(contours, src, (px_to_mm_a + px_to_mm_r)/2 );
 
 	return dst;
 }
 
 
-/// <summary>
-/// Instead of trying to find the contours, make a picture with an empty background. Then, take the object and the difference should be 
-/// object we are trying to measure. 
-/// Possible Problem: Shadows.
-/// justification: in a stationary situation with the same lighting at every time, this is easily achivable
-/// </summary>
-/// <returns></returns>
-cv::Mat BackgroundRemoval()
-{
-	cv::Mat img;
-	return img;
-}
-
 
 int main()
 {
-
-	cv::Mat src;
-	
-	
 	imbus();
-
-	//imbus_background_sub(src);
 
 	cv::waitKey();
 	return 0;
